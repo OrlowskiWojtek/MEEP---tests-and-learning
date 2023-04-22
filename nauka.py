@@ -14,8 +14,8 @@ pml_layers = [mp.PML(dpml)]
 
 geometry = []
 
-fcen = 1/10 # pulse center frequency
-df = 0.09   # pulse width (in frequency)
+fcen = 1/8 # pulse center frequency
+df = 0.1   # pulse width (in frequency)
 sources = [mp.Source(mp.GaussianSource(fcen,fwidth=df,is_integrated=True),
                      component=mp.Ez,
                      center=mp.Vector3(-sx/2 + dpml + 1,0,0),
