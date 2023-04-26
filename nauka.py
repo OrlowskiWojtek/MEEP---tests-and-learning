@@ -1,6 +1,9 @@
 import meep as mp
 import numpy as np
 import matplotlib.pyplot as plt
+import os
+
+os.system("mkdir gifs")
 
 resolution = 16 # pixels/um
 
@@ -13,6 +16,8 @@ cell = mp.Vector3(sx,sy,0)
 pml_layers = [mp.PML(dpml)]
 
 geometry = []
+
+symmetries = [mp.Mirror(mp.Y)]
 
 fcen = 1/8 # pulse center frequency
 df = 0.1   # pulse width (in frequency)
@@ -92,4 +97,4 @@ if mp.am_master():
     plt.axis([4, 20, 0, 1])
     plt.xlabel("wavelength (μm)")
     plt.legend(loc="upper right")
-    plt.show()
+    plt.savefig('gallery/plot.png')
