@@ -1,5 +1,5 @@
 #!/bin/bash
-h5topng -t 0:166 -R -Zc dkbluered -a yarg -A nauka-eps-000000.00.h5 nauka-ezSim1.h5
+h5topng -t 0:166 -R -Zc dkbluered  nauka-ezSim1.h5
 
 convert *.png gifs/ezSim1.gif
 
