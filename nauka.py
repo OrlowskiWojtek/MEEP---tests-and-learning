@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 def main():
     # Some parameters to describe the geometry:
     eps = 12  # dielectric constant of waveguide
-
+    kx = 0
     # The cell dimensions
     sy = 20 # size of cell in y direction (perpendicular to wvg.)
     dpml = 1  # PML thickness (y direction only!)
@@ -27,30 +27,30 @@ def main():
 
     s = mp.Source(
         src=mp.GaussianSource(fcen, fwidth=df),
-        component=mp.Hz,
-        center=mp.Vector3(0,-5),
+        component=mp.Ex,
+        center=mp.Vector3(0,-7)
     )
 
     sim = mp.Simulation(
         cell_size=cell,
         geometry=None,
         sources=[s],
-        k_point = mp.Vector3(2),
+        k_point = mp.Vector3(kx),
         boundary_layers=[mp.PML(dpml, direction=mp.Y)],
-        resolution=20,
+        resolution=20
     )
 
     nfreq = 100  # number of frequencies at which to compute flux
 
-    refl_fr = mp.FluxRegion(center=mp.Vector3(0,-sy/2 + dpml + 2,0), direction=mp.Y)
+    refl_fr = mp.FluxRegion(center=mp.Vector3(0,-5,0), direction=mp.Y)
     refl = sim.add_flux(fcen, df, nfreq, refl_fr)
 
-    tran_fr = mp.FluxRegion(center=mp.Vector3(0,sy/2 - dpml + 2,0), direction=mp.Y)
+    tran_fr = mp.FluxRegion(center=mp.Vector3(0,sy/2 - dpml - 2,0), direction=mp.Y)
     tran = sim.add_flux(fcen, df, nfreq, tran_fr)
 
     pt = mp.Vector3(0,sy/2-dpml-1)
 
-    sim.run(until_after_sources=mp.stop_when_fields_decayed(100,mp.Hz,pt,1e-3))
+    sim.run(until_after_sources=mp.stop_when_fields_decayed(50,mp.Ex,pt,1e-3))
 
     # for normalization run, save flux fields data for reflection plane
     straight_refl_data = sim.get_flux_data(refl)
@@ -62,25 +62,25 @@ def main():
     geometry = []
 
     for i in range(3):
-        geometry.append(mp.Block(size = mp.Vector3(0,2/(math.sqrt(12)),mp.inf),center= mp.Vector3(0,-3+2*i,0),
+        geometry.append(mp.Block(size = mp.Vector3(mp.inf,2/(math.sqrt(12)),mp.inf),center= mp.Vector3(0,-3+2*i,0),
                                  material = mp.Medium(epsilon=eps)))
     sim = mp.Simulation(
         cell_size=cell,
         geometry=geometry,
         sources=[s],
-        k_point = mp.Vector3(4),
+        k_point = mp.Vector3(kx),
         boundary_layers=[mp.PML(dpml, direction=mp.Y)],
-        resolution=20,
+        resolution=20
     )
 
     refl = sim.add_flux(fcen, df, nfreq, refl_fr)
 
-    tran_fr = mp.FluxRegion(center=mp.Vector3(0,sy/2 - dpml + 2,0), direction=mp.Y)
+    tran_fr = mp.FluxRegion(center=mp.Vector3(0,sy/2 - dpml - 2,0), direction=mp.Y)
     tran = sim.add_flux(fcen, df, nfreq, tran_fr)
 
     sim.load_minus_flux_data(refl, straight_refl_data)
 
-    sim.run(until_after_sources=mp.stop_when_fields_decayed(50, mp.Hz, pt, 1e-3))
+    sim.run(mp.at_beginning(mp.output_epsilon),until_after_sources=mp.stop_when_fields_decayed(50, mp.Ex, pt, 1e-3))
 
     bend_refl_flux = mp.get_fluxes(refl)
     bend_tran_flux = mp.get_fluxes(tran)
