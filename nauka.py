@@ -1,100 +1,109 @@
+# Meep Tutorial: Hz-polarized transmission and reflection through a cavity
+# formed by a periodic sequence of holes in a dielectric waveguide,
+# with a defect formed by a larger spacing between one pair of holes.
+
+# This structure is based on one analyzed in:
+#    S. Fan, J. N. Winn, A. Devenyi, J. C. Chen, R. D. Meade, and
+#    J. D. Joannopoulos, "Guided and defect modes in periodic dielectric
+#    waveguides," J. Opt. Soc. Am. B, 12 (7), 1267-1272 (1995).
+
 import meep as mp
+import math
 import numpy as np
 import matplotlib.pyplot as plt
-import os
 
-os.system("mkdir gifs")
+def main():
+    # Some parameters to describe the geometry:
+    eps = 12  # dielectric constant of waveguide
 
-resolution = 16 # pixels/um
+    # The cell dimensions
+    sy = 20 # size of cell in y direction (perpendicular to wvg.)
+    dpml = 1  # PML thickness (y direction only!)
 
-sx = 32
-sy = 32
+    cell = mp.Vector3(0, sy)
 
-dpml = 4.0
+    fcen = 0.125  # pulse center frequency
+    df = 0.1  # pulse freq. width: large df = short impulse
 
-cell = mp.Vector3(sx,sy,0)
-pml_layers = [mp.PML(dpml)]
+    s = mp.Source(
+        src=mp.GaussianSource(fcen, fwidth=df),
+        component=mp.Hz,
+        center=mp.Vector3(0,-5),
+    )
 
-geometry = []
+    sim = mp.Simulation(
+        cell_size=cell,
+        geometry=None,
+        sources=[s],
+        k_point = mp.Vector3(2),
+        boundary_layers=[mp.PML(dpml, direction=mp.Y)],
+        resolution=20,
+    )
 
-symmetries = [mp.Mirror(mp.Y)]
+    nfreq = 100  # number of frequencies at which to compute flux
 
-fcen = 1/8 # pulse center frequency
-df = 0.1   # pulse width (in frequency)
-sources = [mp.Source(mp.GaussianSource(fcen,fwidth=df,is_integrated=True),
-                     component=mp.Ez,
-                     center=mp.Vector3(-sx/2 + dpml + 1,0,0),
-                     size=mp.Vector3(0,sy-2,0))]
+    refl_fr = mp.FluxRegion(center=mp.Vector3(0,-sy/2 + dpml + 2,0), direction=mp.Y)
+    refl = sim.add_flux(fcen, df, nfreq, refl_fr)
 
-sim = mp.Simulation(cell_size=cell,
-                    boundary_layers=pml_layers,
-                    geometry=None,
-                    sources=sources,
-                    resolution=resolution)
+    tran_fr = mp.FluxRegion(center=mp.Vector3(0,sy/2 - dpml + 2,0), direction=mp.Y)
+    tran = sim.add_flux(fcen, df, nfreq, tran_fr)
 
+    pt = mp.Vector3(0,sy/2-dpml-1)
 
-nfreq = 100  # number of frequencies at which to compute flux
+    sim.run(until_after_sources=mp.stop_when_fields_decayed(100,mp.Hz,pt,1e-3))
 
-refl_fr = mp.FluxRegion(center=mp.Vector3(-sx/2 + dpml + 2,0,0), size=mp.Vector3(0,sy-2*dpml,0))
-refl = sim.add_flux(fcen, df, nfreq, refl_fr)
+    # for normalization run, save flux fields data for reflection plane
+    straight_refl_data = sim.get_flux_data(refl)
 
-tran_fr = mp.FluxRegion(center=mp.Vector3(sx/2 - dpml - 2,0,0), size=mp.Vector3(0,sy-2*dpml,0))
-tran = sim.add_flux(fcen, df, nfreq, tran_fr)
+    straight_tran_flux = mp.get_fluxes(tran)
 
-pt = mp.Vector3(sx/2-dpml-1,0)
+    sim.reset_meep()
 
-sim.run(mp.to_appended("ezSim1", mp.at_every(0.6, mp.output_efield_z)),until_after_sources=mp.stop_when_fields_decayed(50,mp.Ez,pt,1e-3))
+    geometry = []
 
-# for normalization run, save flux fields data for reflection plane
-straight_refl_data = sim.get_flux_data(refl)
+    for i in range(3):
+        geometry.append(mp.Block(size = mp.Vector3(0,2/(math.sqrt(12)),mp.inf),center= mp.Vector3(0,-3+2*i,0),
+                                 material = mp.Medium(epsilon=eps)))
+    sim = mp.Simulation(
+        cell_size=cell,
+        geometry=geometry,
+        sources=[s],
+        k_point = mp.Vector3(4),
+        boundary_layers=[mp.PML(dpml, direction=mp.Y)],
+        resolution=20,
+    )
 
-straight_tran_flux = mp.get_fluxes(tran)
+    refl = sim.add_flux(fcen, df, nfreq, refl_fr)
 
-sim.reset_meep()
+    tran_fr = mp.FluxRegion(center=mp.Vector3(0,sy/2 - dpml + 2,0), direction=mp.Y)
+    tran = sim.add_flux(fcen, df, nfreq, tran_fr)
 
-geometry = []
+    sim.load_minus_flux_data(refl, straight_refl_data)
 
-for i in range(3):
-    geometry.append(mp.Block(mp.Vector3(2/(np.sqrt(12)),mp.inf,mp.inf), center = mp.Vector3(2*i,0,0), material = mp.Medium(epsilon=12)))
+    sim.run(until_after_sources=mp.stop_when_fields_decayed(50, mp.Hz, pt, 1e-3))
 
+    bend_refl_flux = mp.get_fluxes(refl)
+    bend_tran_flux = mp.get_fluxes(tran)
 
-sim = mp.Simulation(cell_size=cell,
-                    boundary_layers=pml_layers,
-                    geometry=geometry,
-                    sources=sources,
-                    resolution=resolution)
+    flux_freqs = mp.get_flux_freqs(refl)
 
-# reflected flux
-refl = sim.add_flux(fcen, df, nfreq, refl_fr)
+    wl = []
+    Rs = []
+    Ts = []
+    for i in range(nfreq):
+        wl = np.append(wl, 1/flux_freqs[i])
+        Rs = np.append(Rs,-bend_refl_flux[i]/straight_tran_flux[i])
+        Ts = np.append(Ts,bend_tran_flux[i]/straight_tran_flux[i])
 
-tran_fr = mp.FluxRegion(center=mp.Vector3(sx/2-dpml-2,0,0), size=mp.Vector3(0,sy-2*dpml,0))
-tran = sim.add_flux(fcen, df, nfreq, tran_fr)
+    if mp.am_master():
+        plt.figure()
+        plt.plot(wl,Rs,'bo-',label='reflectance')
+        plt.plot(wl,Ts,'ro-',label='transmittance')
+        plt.plot(wl,1-Rs-Ts,'go-',label='loss')
+        plt.axis([4, 20, 0, 1])
+        plt.xlabel("wavelength (μm)")
+        plt.legend(loc="upper right")
+        plt.show()
 
-# for normal run, load negated fields to subtract incident from refl. fields
-sim.load_minus_flux_data(refl, straight_refl_data)
-
-sim.run(mp.at_beginning(mp.output_epsilon),
-        mp.to_appended("ezSim2", mp.at_every(0.6, mp.output_efield_z)),until_after_sources=mp.stop_when_fields_decayed(50, mp.Ez, pt, 1e-3))
-
-bend_refl_flux = mp.get_fluxes(refl)
-bend_tran_flux = mp.get_fluxes(tran)
-
-flux_freqs = mp.get_flux_freqs(refl)
-
-wl = []
-Rs = []
-Ts = []
-for i in range(nfreq):
-    wl = np.append(wl, 1/flux_freqs[i])
-    Rs = np.append(Rs,-bend_refl_flux[i]/straight_tran_flux[i])
-    Ts = np.append(Ts,bend_tran_flux[i]/straight_tran_flux[i])
-
-if mp.am_master():
-    plt.figure()
-    plt.plot(wl,Rs,'bo-',label='reflectance')
-    plt.plot(wl,Ts,'ro-',label='transmittance')
-    plt.plot(wl,1-Rs-Ts,'go-',label='loss')
-    plt.axis([4, 20, 0, 1])
-    plt.xlabel("wavelength (μm)")
-    plt.legend(loc="upper right")
-    plt.savefig('gallery/plot.png')
+if __name__ == "__main__":
+    main()
