@@ -95,29 +95,6 @@ def main():
         plt.xlabel("wavelength (μm)")
         plt.legend(loc="upper right")
         plt.show()
-    
-    omega = 0.125
-
-    s = [
-            mp.Source(
-            src=mp.GaussianSource(omega, fwidth=0.01),
-            component=mp.Hz,
-            center=mp.Vector3(0, -5),
-        )
-    ]
-    sim = mp.Simulation(
-        cell_size=cell,
-        geometry=geometry,
-        boundary_layers=[mp.PML(dpml, direction=mp.Y)],
-        sources=s,
-        k_point=mp.Vector3(kx),
-        resolution=0,
-    )
-    f = plt.figure(dpi=100)
-    animate = mp.Animate2D(fields=mp.Hx, f=f, normalize=True, realtime=False)
-    sim.run(mp.at_every(5, animate), until_after_sources=1)
-    animate.to_mp4(10, "test.mp4")
-    plt.close()
 
 if __name__ == "__main__":
     main()
