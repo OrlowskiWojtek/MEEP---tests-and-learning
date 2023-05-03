@@ -13,8 +13,8 @@ def main():
 
     cell = mp.Vector3(0, sy)
 
-    fcen = 0.125  # pulse center frequency
-    df = 0.1  # pulse freq. width: large df = short impulse
+    fcen = 0.1  # pulse center frequency
+    df = 0.09  # pulse freq. width: large df = short impulse
 
     s = mp.Source(
         src=mp.GaussianSource(fcen, fwidth=df),
@@ -41,7 +41,7 @@ def main():
 
     pt = mp.Vector3(0,sy/2-dpml-1)
 
-    sim.run(until_after_sources=mp.stop_when_fields_decayed(50,mp.Ex,pt,1e-3))
+    sim.run(mp.to_appended("ezSim1", mp.at_every(0.6, mp.output_efield_x)), until_after_sources=mp.stop_when_fields_decayed(50,mp.Ex,pt,1e-3))
 
     # for normalization run, save flux fields data for reflection plane
     straight_refl_data = sim.get_flux_data(refl)
@@ -71,7 +71,7 @@ def main():
 
     sim.load_minus_flux_data(refl, straight_refl_data)
 
-    sim.run(mp.at_beginning(mp.output_epsilon),until_after_sources=mp.stop_when_fields_decayed(50, mp.Ex, pt, 1e-3))
+    sim.run(mp.at_beginning(mp.output_epsilon),mp.to_appended("ezSim2", mp.at_every(0.6, mp.output_efield_x)),until_after_sources=mp.stop_when_fields_decayed(50, mp.Ex, pt, 1e-3))
 
     bend_refl_flux = mp.get_fluxes(refl)
     bend_tran_flux = mp.get_fluxes(tran)
@@ -95,6 +95,29 @@ def main():
         plt.xlabel("wavelength (μm)")
         plt.legend(loc="upper right")
         plt.show()
+    
+    omega = 0.125
+
+    s = [
+            mp.Source(
+            src=mp.GaussianSource(omega, fwidth=0.01),
+            component=mp.Hz,
+            center=mp.Vector3(0, -5),
+        )
+    ]
+    sim = mp.Simulation(
+        cell_size=cell,
+        geometry=geometry,
+        boundary_layers=[mp.PML(dpml, direction=mp.Y)],
+        sources=s,
+        k_point=mp.Vector3(kx),
+        resolution=0,
+    )
+    f = plt.figure(dpi=100)
+    animate = mp.Animate2D(fields=mp.Hx, f=f, normalize=True, realtime=False)
+    sim.run(mp.at_every(5, animate), until_after_sources=1)
+    animate.to_mp4(10, "test.mp4")
+    plt.close()
 
 if __name__ == "__main__":
     main()
