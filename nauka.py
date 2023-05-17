@@ -19,8 +19,11 @@ def main(n):
     fcen = 0.125  # pulse center frequency
     df = 0.2  # pulse freq. width: large df = short impulse
 
+    wvlngth = 1/fcen
+    wvlwidth = 7.5
+
     s = mp.Source(
-        src=mp.GaussianSource(fcen, fwidth=df),
+        src=mp.GaussianSource(wavelength=wvlngth, width=wvlwidth),
         component=mp.Ez,
         center=mp.Vector3(0,-ycell/2)
     )
@@ -31,10 +34,10 @@ def main(n):
         sources=[s],
         k_point = mp.Vector3(kx),
         boundary_layers=[mp.PML(dpml, direction=mp.Y)],
-        resolution=20
+        resolution=40
     )
 
-    nfreq = 100  # number of frequencies at which to compute flux
+    nfreq = 300  # number of frequencies at which to compute flux
 
     refl_fr = mp.FluxRegion(center=mp.Vector3(0,-ycell/2+1,0), direction=mp.Y)
     refl = sim.add_flux(fcen, df, nfreq, refl_fr)
@@ -66,7 +69,7 @@ def main(n):
         sources=[s],
         k_point = mp.Vector3(kx),
         boundary_layers=[mp.PML(dpml, direction=mp.Y)],
-        resolution=20
+        resolution=40
     )
 
     refl = sim.add_flux(fcen, df, nfreq, refl_fr)
@@ -95,15 +98,16 @@ def main(n):
 
     if mp.am_master():
         plt.figure()
+        plt.title("n="+str(n))
         plt.plot(wl,Rs,'bo-',label='reflectance')
         plt.plot(wl,Ts,'ro-',label='transmittance')
         plt.plot(wl,1-Rs-Ts,'go-',label='loss')
-        plt.axis([4, 20, 0, 1])
+        plt.axis([wvlngth-wvlwidth/2-3, wvlngth+wvlwidth/2+3, 0, 1])
         plt.xlabel("wavelength (μm)")
         plt.legend(loc="upper right")
 
         plt.savefig("gallery/n"+str(n)+".png")
 
 if __name__ == "__main__":
-    for i in range (5):
+    for i in range (0,20,2):
         main(i)
