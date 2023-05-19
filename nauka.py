@@ -4,24 +4,24 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 def main(n):
-    # zparametryzować!
     # Some parameters to describe the geometry:
     eps = 12  # dielectric constant of waveguide
     kx = 0
     # The cell dimensions
-    dpml = 30   # PML thickness (y direction only!)
+    dpml = 20   # PML thickness (y direction only!)
     md = n*(2+1/math.sqrt(3))
-    ycell=md+4 
+    ycell=md+6 
     sy = 2*dpml + ycell # size of cell in y direction (perpendicular to wvg.)
 
     cell = mp.Vector3(0, sy)
 
-    fcen = 0.125  # pulse center frequency
-    df = 0.2  # pulse freq. width: large df = short impulse
+    #fcen = 0.125  # pulse center frequency
 
-    wvlngth = 1/fcen
-    wvlwidth = 7.5
+    wvlngth = 8
+    wvlwidth = 8
 
+    df = (1/(wvlngth-wvlwidth/2)-1/(wvlngth+wvlwidth/2))  # pulse freq. width: large df = short impulse
+    
     s = mp.Source(
         src=mp.GaussianSource(wavelength=wvlngth, width=wvlwidth),
         component=mp.Ez,
@@ -34,20 +34,20 @@ def main(n):
         sources=[s],
         k_point = mp.Vector3(kx),
         boundary_layers=[mp.PML(dpml, direction=mp.Y)],
-        resolution=40
+        resolution=30
     )
 
     nfreq = 300  # number of frequencies at which to compute flux
 
     refl_fr = mp.FluxRegion(center=mp.Vector3(0,-ycell/2+1,0), direction=mp.Y)
-    refl = sim.add_flux(fcen, df, nfreq, refl_fr)
+    refl = sim.add_flux(1/wvlngth, df, nfreq, refl_fr)
 
     tran_fr = mp.FluxRegion(center=mp.Vector3(0,ycell/2-1,0), direction=mp.Y)
-    tran = sim.add_flux(fcen, df, nfreq, tran_fr)
+    tran = sim.add_flux(1/wvlngth, df, nfreq, tran_fr)
 
     pt = mp.Vector3(0,ycell/2-1)
 
-    #sim.run(mp.to_appended("ezSim1", mp.at_every(0.6, mp.output_efield_x)), until_after_sources=mp.stop_when_fields_decayed(50,mp.Ez,pt,1e-3))
+    #sim.run(mp.to_appended("ezSim1", mp.at_every(0.6, mp.output_efield_z)), until_after_sources=mp.stop_when_fields_decayed(50,mp.Ez,pt,1e-3))
 
     sim.run(until_after_sources=mp.stop_when_fields_decayed(50,mp.Ez,pt,1e-3))
 
@@ -61,7 +61,7 @@ def main(n):
     geometry = []
 
     for i in range(n):
-        geometry.append(mp.Block(size = mp.Vector3(mp.inf,2/(math.sqrt(12)),mp.inf),center= mp.Vector3(0,-md/2+2*i,0),
+        geometry.append(mp.Block(size = mp.Vector3(mp.inf,1/(math.sqrt(3)),mp.inf),center= mp.Vector3(0,-md/2+1/(2*math.sqrt(3))+2*i,0),
                                  material = mp.Medium(epsilon=eps)))
     sim = mp.Simulation(
         cell_size=cell,
@@ -69,17 +69,17 @@ def main(n):
         sources=[s],
         k_point = mp.Vector3(kx),
         boundary_layers=[mp.PML(dpml, direction=mp.Y)],
-        resolution=40
+        resolution=30
     )
 
-    refl = sim.add_flux(fcen, df, nfreq, refl_fr)
+    refl = sim.add_flux(1/wvlngth, df, nfreq, refl_fr)
 
     tran_fr = mp.FluxRegion(center=mp.Vector3(0,ycell/2-1,0), direction=mp.Y)
-    tran = sim.add_flux(fcen, df, nfreq, tran_fr)
+    tran = sim.add_flux(1/wvlngth, df, nfreq, tran_fr)
 
     sim.load_minus_flux_data(refl, straight_refl_data)
 
-    #sim.run(mp.at_beginning(mp.output_epsilon),mp.to_appended("ezSim2", mp.at_every(0.6, mp.output_efield_x)),until_after_sources=mp.stop_when_fields_decayed(50, mp.Ez, pt, 1e-3))
+    #sim.run(mp.at_beginning(mp.output_epsilon),mp.to_appended("ezSim2", mp.at_every(0.6, mp.output_efield_z)),until_after_sources=mp.stop_when_fields_decayed(50, mp.Ez, pt, 1e-3))
 
     sim.run(until_after_sources=mp.stop_when_fields_decayed(50, mp.Ez, pt, 1e-3))
 
@@ -106,7 +106,7 @@ def main(n):
         plt.xlabel("wavelength (μm)")
         plt.legend(loc="upper right")
 
-        plt.savefig("gallery/n"+str(n)+".png")
+        plt.savefig("gallery/v2n"+str(n)+".png")
 
 if __name__ == "__main__":
     for i in range (0,20,2):
