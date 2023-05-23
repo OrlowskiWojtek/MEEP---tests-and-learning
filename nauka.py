@@ -37,7 +37,7 @@ def main(n):
         resolution=30
     )
 
-    nfreq = 300  # number of frequencies at which to compute flux
+    nfreq = 100  # number of frequencies at which to compute flux
 
     refl_fr = mp.FluxRegion(center=mp.Vector3(0,-ycell/2+1,0), direction=mp.Y)
     refl = sim.add_flux(1/wvlngth, df, nfreq, refl_fr)
@@ -106,8 +106,8 @@ def main(n):
         plt.xlabel("wavelength (μm)")
         plt.legend(loc="upper right")
 
-        plt.savefig("gallery/v2n"+str(n)+".png")
+        plt.savefig("gallery/v0n"+str(n)+".png")
 
 if __name__ == "__main__":
-    for i in range (0,20,2):
+    for i in range (0,20,4):
         main(i)
