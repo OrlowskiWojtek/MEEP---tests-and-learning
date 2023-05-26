@@ -10,20 +10,19 @@ def main(n):
     # The cell dimensions
     dpml = 20   # PML thickness (y direction only!)
     md = n*(2+1/math.sqrt(3))
-    ycell=md+6 
+    ycell=md+10 
     sy = 2*dpml + ycell # size of cell in y direction (perpendicular to wvg.)
 
     cell = mp.Vector3(0, sy)
 
-    #fcen = 0.125  # pulse center frequency
+    fcen = 0.125  # pulse center frequency
+    df = 0.2
 
     wvlngth = 8
     wvlwidth = 8
 
-    df = (1/(wvlngth-wvlwidth/2)-1/(wvlngth+wvlwidth/2))  # pulse freq. width: large df = short impulse
-    
     s = mp.Source(
-        src=mp.GaussianSource(wavelength=wvlngth, width=wvlwidth),
+        src=mp.GaussianSource(frequency=fcen, fwidth=df),
         component=mp.Ez,
         center=mp.Vector3(0,-ycell/2)
     )
@@ -37,13 +36,13 @@ def main(n):
         resolution=30
     )
 
-    nfreq = 100  # number of frequencies at which to compute flux
+    nfreq = 1000  # number of frequencies at which to compute flux
 
     refl_fr = mp.FluxRegion(center=mp.Vector3(0,-ycell/2+1,0), direction=mp.Y)
-    refl = sim.add_flux(1/wvlngth, df, nfreq, refl_fr)
+    refl = sim.add_flux(fcen, df, nfreq, refl_fr)
 
     tran_fr = mp.FluxRegion(center=mp.Vector3(0,ycell/2-1,0), direction=mp.Y)
-    tran = sim.add_flux(1/wvlngth, df, nfreq, tran_fr)
+    tran = sim.add_flux(fcen, df, nfreq, tran_fr)
 
     pt = mp.Vector3(0,ycell/2-1)
 
@@ -61,7 +60,7 @@ def main(n):
     geometry = []
 
     for i in range(n):
-        geometry.append(mp.Block(size = mp.Vector3(mp.inf,1/(math.sqrt(3)),mp.inf),center= mp.Vector3(0,-md/2+1/(2*math.sqrt(3))+2*i,0),
+        geometry.append(mp.Block(size = mp.Vector3(mp.inf,1/(math.sqrt(3)),mp.inf),center= mp.Vector3(0,-md/2+1/(2*math.sqrt(3))+i*(1/math.sqrt(3) + 2),0),
                                  material = mp.Medium(epsilon=eps)))
     sim = mp.Simulation(
         cell_size=cell,
@@ -72,10 +71,10 @@ def main(n):
         resolution=30
     )
 
-    refl = sim.add_flux(1/wvlngth, df, nfreq, refl_fr)
+    refl = sim.add_flux(fcen, df, nfreq, refl_fr)
 
     tran_fr = mp.FluxRegion(center=mp.Vector3(0,ycell/2-1,0), direction=mp.Y)
-    tran = sim.add_flux(1/wvlngth, df, nfreq, tran_fr)
+    tran = sim.add_flux(fcen, df, nfreq, tran_fr)
 
     sim.load_minus_flux_data(refl, straight_refl_data)
 
@@ -88,26 +87,26 @@ def main(n):
 
     flux_freqs = mp.get_flux_freqs(refl)
 
-    wl = []
+    fr = []
     Rs = []
     Ts = []
     for i in range(nfreq):
-        wl = np.append(wl, 1/flux_freqs[i])
+        fr = np.append(fr, flux_freqs[i])
         Rs = np.append(Rs,-bend_refl_flux[i]/straight_tran_flux[i])
         Ts = np.append(Ts,bend_tran_flux[i]/straight_tran_flux[i])
 
     if mp.am_master():
         plt.figure()
         plt.title("n="+str(n))
-        plt.plot(wl,Rs,'bo-',label='reflectance')
-        plt.plot(wl,Ts,'ro-',label='transmittance')
-        plt.plot(wl,1-Rs-Ts,'go-',label='loss')
-        plt.axis([wvlngth-wvlwidth/2-3, wvlngth+wvlwidth/2+3, 0, 1])
-        plt.xlabel("wavelength (μm)")
+        #plt.plot(fr,Rs,'bo-',label='reflectance')
+        plt.plot(fr,Ts,'ro-',label='transmittance')
+        #plt.plot(fr,1-Rs-Ts,'go-',label='loss')
+        plt.axis([fcen - df/2-0.05 , fcen + df/2+0.05, 0, 1])
+        plt.xlabel("Frequency (1/μm)")
         plt.legend(loc="upper right")
 
-        plt.savefig("gallery/v0n"+str(n)+".png")
+        plt.savefig("gallery/vnTRANS"+str(n)+".png")
 
 if __name__ == "__main__":
-    for i in range (0,20,4):
+    for i in range (0,20):
         main(i)
